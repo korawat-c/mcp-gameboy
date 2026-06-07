@@ -36,3 +36,8 @@ Thumbs.db
 mcp-gameboy.log
 roms/example.gb
 roms/Pokemon Red.gb
+
+# Local ROM files
+roms/*.gb
+roms/*.gbc
+roms/*.gba
