@@ -11,21 +11,47 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { log } from './utils/logger';
 
+type ToolInputSchema = Record<string, z.ZodTypeAny>;
+type RegisterTool = (
+  name: string,
+  config: {
+    description?: string;
+    inputSchema?: ToolInputSchema;
+  },
+  cb: (...args: any[]) => CallToolResult | Promise<CallToolResult>
+) => void;
+
+const pressButtonInputSchema: ToolInputSchema = {
+  duration_frames: z.number().int().positive().describe('Number of frames to hold the button').default(25)
+};
+
+const waitFramesInputSchema: ToolInputSchema = {
+  duration_frames: z.number().int().positive().describe('Number of frames to wait').default(100)
+};
+
+const loadRomInputSchema: ToolInputSchema = {
+  romPath: z.string().describe('Path to the ROM file')
+};
+
 /**
  * Register GameBoy tools with the MCP server
  * @param server MCP server instance
  * @param emulatorService Emulator service instance
  */
 export function registerGameBoyTools(server: McpServer, emulatorService: EmulatorService): void {
+  const registerTool = server.registerTool.bind(server) as RegisterTool;
+
   // Register button press tools
   Object.values(GameBoyButton).forEach(button => {
-    server.tool(
+    registerTool(
       `press_${button.toLowerCase()}`,
-      `Press the ${button} button on the GameBoy`,
       {
-        duration_frames: z.number().int().positive().optional().default(1).describe('Number of frames to hold the button').default(25)
+        description: `Press the ${button} button on the GameBoy`,
+        inputSchema: pressButtonInputSchema
       },
-      async ({ duration_frames }): Promise<CallToolResult> => {
+      async (args): Promise<CallToolResult> => {
+        const { duration_frames } = args as { duration_frames: number };
+
         // Press the button using the service (advances one frame)
         emulatorService.pressButton(button, duration_frames);
 
@@ -37,13 +63,15 @@ export function registerGameBoyTools(server: McpServer, emulatorService: Emulato
   });
 
   // Register wait_frames tool
-  server.tool(
+  registerTool(
     'wait_frames',
-    'Wait for a specified number of frames',
     {
-      duration_frames: z.number().int().positive().describe('Number of frames to wait').default(100)
+      description: 'Wait for a specified number of frames',
+      inputSchema: waitFramesInputSchema
     },
-    async ({ duration_frames }): Promise<CallToolResult> => {
+    async (args): Promise<CallToolResult> => {
+      const { duration_frames } = args as { duration_frames: number };
+
       // Wait for frames using the service
       const screen = emulatorService.waitFrames(duration_frames);
       return { content: [screen] };
@@ -51,13 +79,15 @@ export function registerGameBoyTools(server: McpServer, emulatorService: Emulato
   );
 
   // Register load ROM tool
-  server.tool(
+  registerTool(
     'load_rom',
-    'Load a GameBoy ROM file',
     {
-      romPath: z.string().describe('Path to the ROM file')
+      description: 'Load a GameBoy ROM file',
+      inputSchema: loadRomInputSchema
     },
-    async ({ romPath }): Promise<CallToolResult> => {
+    async (args): Promise<CallToolResult> => {
+      const { romPath } = args as { romPath: string };
+
       // Load ROM using the service (already advances initial frames)
       const screen = emulatorService.loadRom(romPath);
       return { content: [screen] };
@@ -65,10 +95,11 @@ export function registerGameBoyTools(server: McpServer, emulatorService: Emulato
   );
 
   // Register get screen tool
-  server.tool(
+  registerTool(
     'get_screen',
-    'Get the current GameBoy screen (advances one frame)', // Updated description
-    {},
+    {
+      description: 'Get the current GameBoy screen (advances one frame)'
+    },
     async (): Promise<CallToolResult> => {
       // Advance one frame and get the screen using the service
       const screen = emulatorService.advanceFrameAndGetScreen();
@@ -77,10 +108,11 @@ export function registerGameBoyTools(server: McpServer, emulatorService: Emulato
   );
 
   // Register is_rom_loaded tool
-  server.tool(
+  registerTool(
     'is_rom_loaded',
-    'Check if a ROM is currently loaded in the emulator',
-    {},
+    {
+      description: 'Check if a ROM is currently loaded in the emulator'
+    },
     async (): Promise<CallToolResult> => {
       const isLoaded = emulatorService.isRomLoaded();
       const romPath = emulatorService.getRomPath();
@@ -103,10 +135,11 @@ export function registerGameBoyTools(server: McpServer, emulatorService: Emulato
   );
 
   // Register list_roms tool
-  server.tool(
+  registerTool(
     'list_roms',
-    'List all available GameBoy ROM files',
-    {},
+    {
+      description: 'List all available GameBoy ROM files'
+    },
     async (): Promise<CallToolResult> => {
       try {
         const romsDir = path.join(process.cwd(), 'roms');
