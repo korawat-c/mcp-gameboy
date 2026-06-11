@@ -147,11 +147,10 @@ export function setupWebUI(app: express.Application, emulatorService: EmulatorSe
                    console.error(\`Error calling tool \${toolName}: \${response.status} \${errorText}\`);
                  } else {
                    console.log(\`Tool \${toolName} called successfully.\`);
-                   // Optionally force a screen update if not auto-playing
-                   // if (!autoPlayEnabled) {
-                   //   if (updateTimeoutId) clearTimeout(updateTimeoutId);
-                   //   updateScreen();
-                   // }
+                   if (!autoPlayEnabled) {
+                     if (updateTimeoutId) clearTimeout(updateTimeoutId);
+                     updateScreen();
+                   }
                  }
                } catch (error) {
                  console.error(\`Network error calling tool \${toolName}:\`, error);
