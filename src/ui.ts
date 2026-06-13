@@ -273,6 +273,23 @@ export function setupWebUI(app: express.Application, emulatorService: EmulatorSe
           }
           result = emulatorService.waitFrames(duration_frames_wait);
           break;
+        case 'save_state':
+          if (!params || typeof params.statePath !== 'string') {
+            res.status(400).json({ error: 'State path is required' });
+            return; // Exit early
+          }
+          result = {
+            type: 'text',
+            text: JSON.stringify(emulatorService.saveState(params.statePath))
+          };
+          break;
+        case 'load_state':
+          if (!params || typeof params.statePath !== 'string') {
+            res.status(400).json({ error: 'State path is required' });
+            return; // Exit early
+          }
+          result = emulatorService.loadState(params.statePath);
+          break;
         default:
           if (tool.startsWith('press_')) {
             const buttonName = tool.replace('press_', '').toUpperCase();

@@ -62,6 +62,55 @@ export class EmulatorService {
     }
   }
 
+  private resolveStatePath(statePath: string): string {
+    if (!statePath || !statePath.trim()) {
+      throw new Error('State path is required');
+    }
+    const requestedPath = statePath.trim();
+    if (path.isAbsolute(requestedPath)) {
+      return requestedPath;
+    }
+    const normalizedPath = path.normalize(requestedPath);
+    return normalizedPath === 'states' || normalizedPath.startsWith(`states${path.sep}`)
+      ? path.join(process.cwd(), normalizedPath)
+      : path.join(process.cwd(), 'states', normalizedPath);
+  }
+
+  /**
+   * Save a full emulator state to a JSON file.
+   */
+  saveState(statePath: string): { path: string; bytes: number; romPath?: string } {
+    if (!this.isRomLoaded()) {
+      log.warn('Attempted to save state with no ROM loaded');
+      throw new Error('No ROM loaded');
+    }
+    const resolvedPath = this.resolveStatePath(statePath);
+    fs.mkdirSync(path.dirname(resolvedPath), { recursive: true });
+    const state = this.emulator.saveState();
+    const payload = JSON.stringify(state);
+    fs.writeFileSync(resolvedPath, payload, 'utf8');
+    log.info(`Saved emulator state: ${resolvedPath}`);
+    return {
+      path: resolvedPath,
+      bytes: Buffer.byteLength(payload, 'utf8'),
+      romPath: this.getRomPath()
+    };
+  }
+
+  /**
+   * Load a full emulator state from a JSON file and return the restored screen.
+   */
+  loadState(statePath: string): ImageContent {
+    const resolvedPath = this.resolveStatePath(statePath);
+    if (!fs.existsSync(resolvedPath)) {
+      throw new Error(`State file not found: ${resolvedPath}`);
+    }
+    const payload = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
+    this.emulator.loadState(payload);
+    log.info(`Loaded emulator state: ${resolvedPath}`);
+    return this.getScreen();
+  }
+
   /**
    * Presses a GameBoy button for a single frame.
    * @param button The button to press.

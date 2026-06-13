@@ -33,6 +33,10 @@ const loadRomInputSchema: ToolInputSchema = {
   romPath: z.string().describe('Path to the ROM file')
 };
 
+const statePathInputSchema: ToolInputSchema = {
+  statePath: z.string().describe('Path to the emulator state JSON file')
+};
+
 /**
  * Register GameBoy tools with the MCP server
  * @param server MCP server instance
@@ -103,6 +107,38 @@ export function registerGameBoyTools(server: McpServer, emulatorService: Emulato
     async (): Promise<CallToolResult> => {
       // Advance one frame and get the screen using the service
       const screen = emulatorService.advanceFrameAndGetScreen();
+      return { content: [screen] };
+    }
+  );
+
+  // Register save state tool
+  registerTool(
+    'save_state',
+    {
+      description: 'Save the current emulator state to a JSON file',
+      inputSchema: statePathInputSchema
+    },
+    async (args): Promise<CallToolResult> => {
+      const { statePath } = args as { statePath: string };
+      const saved = emulatorService.saveState(statePath);
+      const responseText: TextContent = {
+        type: 'text',
+        text: JSON.stringify(saved)
+      };
+      return { content: [responseText] };
+    }
+  );
+
+  // Register load state tool
+  registerTool(
+    'load_state',
+    {
+      description: 'Load an emulator state from a JSON file',
+      inputSchema: statePathInputSchema
+    },
+    async (args): Promise<CallToolResult> => {
+      const { statePath } = args as { statePath: string };
+      const screen = emulatorService.loadState(statePath);
       return { content: [screen] };
     }
   );
